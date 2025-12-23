@@ -87,6 +87,26 @@ export class SerialConnection extends EventEmitter {
 
       this.port.open((err) => {
         if (err) {
+          // Clean up resources on open failure
+          if (this.framer && this.framerDataHandler) {
+            this.framer.off("data", this.framerDataHandler);
+          }
+          if (this.port) {
+            if (this.framer) {
+              this.port.unpipe(this.framer);
+            }
+            if (this.portErrorHandler) {
+              this.port.off("error", this.portErrorHandler);
+            }
+            if (this.portCloseHandler) {
+              this.port.off("close", this.portCloseHandler);
+            }
+          }
+          this.port = null;
+          this.framer = null;
+          this.portErrorHandler = null;
+          this.portCloseHandler = null;
+          this.framerDataHandler = null;
           reject(new ConnectionError(`Failed to open port: ${err.message}`));
           return;
         }

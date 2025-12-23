@@ -205,18 +205,20 @@ export class GridDevice {
       // Encode and send
       const encoded = encodeMessage(descriptor);
       await this.connection.write(encoded);
+
+      // Wait for response
+      return await waitPromise;
     } catch (error) {
-      // Clean up waiter if write fails
+      // Clean up waiter on any error (write failure or timeout)
+      waiter.cancel();
+      throw error;
+    } finally {
+      // Always remove from pending list
       const index = this.pendingWaiters.indexOf(waiter);
       if (index >= 0) {
         this.pendingWaiters.splice(index, 1);
       }
-      waiter.cancel();
-      throw error;
     }
-
-    // Wait for response
-    return waitPromise;
   }
 
   /**
@@ -228,8 +230,12 @@ export class GridDevice {
     // Wait a bit for heartbeats
     while (Date.now() - startTime < timeoutMs) {
       if (this.modules.size > 0) {
-        // Wait a bit more to catch all modules
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        // Wait a bit more to catch all modules, but respect timeout budget
+        const remaining = timeoutMs - (Date.now() - startTime);
+        const waitTime = Math.min(500, Math.max(0, remaining));
+        if (waitTime > 0) {
+          await new Promise((resolve) => setTimeout(resolve, waitTime));
+        }
         break;
       }
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -260,8 +266,12 @@ export class GridDevice {
     try {
       const response = await this.sendAndWait(descriptor, filter);
 
-      const actionString = response.class_parameters.ACTIONSTRING as string;
+      const actionString = response.class_parameters.ACTIONSTRING;
       if (!actionString) {
+        return [];
+      }
+      if (typeof actionString !== "string") {
+        log.warn(`Invalid ACTIONSTRING type from device: ${typeof actionString}`);
         return [];
       }
 

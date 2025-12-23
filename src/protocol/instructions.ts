@@ -6,6 +6,16 @@ import {
   wrapScript,
 } from "./codec.js";
 import type { ResponseFilter } from "./waiter.js";
+import { ProtocolError } from "../utils/errors.js";
+
+/**
+ * Validate protocol parameters are within valid bounds
+ */
+function validateBounds(name: string, value: number, min: number, max: number): void {
+  if (!Number.isInteger(value) || value < min || value > max) {
+    throw new ProtocolError(`Invalid ${name}: ${value} (must be integer ${min} to ${max})`);
+  }
+}
 
 /**
  * Create a fetch config instruction
@@ -17,6 +27,13 @@ export function createFetchConfig(
   element: number,
   eventType: number
 ): { descriptor: MessageDescriptor; filter: ResponseFilter } {
+  // Validate parameters
+  validateBounds("dx", dx, -127, 127);
+  validateBounds("dy", dy, -127, 127);
+  validateBounds("page", page, 0, 255);
+  validateBounds("element", element, 0, 255);
+  validateBounds("eventType", eventType, 0, 255);
+
   const version = getProtocolVersion();
 
   const descriptor: MessageDescriptor = {
@@ -59,6 +76,13 @@ export function createSendConfig(
   eventType: number,
   actionScript: string
 ): { descriptor: MessageDescriptor; filter: ResponseFilter } {
+  // Validate parameters
+  validateBounds("dx", dx, -127, 127);
+  validateBounds("dy", dy, -127, 127);
+  validateBounds("page", page, 0, 255);
+  validateBounds("element", element, 0, 255);
+  validateBounds("eventType", eventType, 0, 255);
+
   const version = getProtocolVersion();
   const actionString = wrapScript(actionScript);
 

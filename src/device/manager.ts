@@ -77,10 +77,19 @@ export class DeviceManager {
    * Disconnect from all devices
    */
   async disconnectAll(): Promise<void> {
+    const errors: Error[] = [];
     for (const device of this.devices.values()) {
-      await device.close();
+      try {
+        await device.close();
+      } catch (err) {
+        log.warn(`Failed to close device: ${err instanceof Error ? err.message : String(err)}`);
+        errors.push(err instanceof Error ? err : new Error(String(err)));
+      }
     }
     this.devices.clear();
+    if (errors.length > 0) {
+      log.warn(`${errors.length} device(s) failed to close cleanly`);
+    }
   }
 }
 

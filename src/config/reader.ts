@@ -93,6 +93,12 @@ export async function readModuleManifest(moduleDir: string): Promise<ModuleManif
     if (!Array.isArray(manifest.position) || manifest.position.length < 2) {
       throw new ConfigError(`Invalid position in ${manifestPath}: expected [x, y] array`);
     }
+    if (typeof manifest.position[0] !== "number" || typeof manifest.position[1] !== "number") {
+      throw new ConfigError(`Invalid position in ${manifestPath}: coordinates must be numbers`);
+    }
+    if (!Number.isInteger(manifest.position[0]) || !Number.isInteger(manifest.position[1])) {
+      throw new ConfigError(`Invalid position in ${manifestPath}: coordinates must be integers`);
+    }
 
     return manifest;
   } catch (error) {
