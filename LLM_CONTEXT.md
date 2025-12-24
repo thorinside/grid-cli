@@ -31,9 +31,13 @@ config/
 | EN16 | 16 encoders with push buttons | 16 encoders (0-15) |
 | EF44 | 4 encoders + 4 faders | 4 encoders (0-3), 4 faders (4-7) |
 | TEK2 | 2 endless touch strips | 2 potmeters (0-1) |
-| VSN1L | Vision module (display) | system element (255) |
+| VSN1L | Vision module (display) | lcd element (0), system element (255) |
 
 **Note**: Element indices are 0-based. The system element (255) handles module-wide events like map mode.
+
+### VSN1L (Vision Module) Details
+
+The VSN1L has a 240x240 pixel color LCD screen. It has a special `lcd` element (index 0) with a `draw` event that fires at ~40fps for screen updates. The screen uses double-buffering - draw to the back buffer, then call `draw_swap()` to display.
 
 ## Page File Format
 
@@ -76,6 +80,7 @@ end
 | potmeter/fader | init, potmeter, timer, midirx, mapmode |
 | button | init, button, timer, midirx, mapmode |
 | encoder | init, encoder, button, timer, midirx, mapmode |
+| lcd | init, draw, timer, midirx, mapmode |
 | system | init, timer, midirx, mapmode |
 
 ## Lua API Reference
@@ -188,6 +193,90 @@ midi_send(0, 176, 1, self:potmeter_value())
 | `math.floor(x)` | Round down |
 | `math.random(n)` | Random number 0 to n |
 | `mapsat(val, in_min, in_max, out_min, out_max)` | Map and saturate value |
+
+## VSN1L Display API
+
+The VSN1L Vision module has a 240x240 pixel color LCD. Drawing uses double-buffering: draw to the back buffer, then call `draw_swap()` to display.
+
+### Display Drawing Functions
+
+All drawing functions use `self:` prefix (called on the lcd element). Colors are specified as `{r, g, b}` tables with 0-255 values.
+
+| Function | Short | Description |
+|----------|-------|-------------|
+| `self:draw_swap()` | `self:ldsw()` | Swap buffers to display drawn content |
+| `self:draw_pixel(x, y, {r,g,b})` | `self:ldpx(...)` | Draw single pixel |
+| `self:draw_line(x1, y1, x2, y2, {r,g,b})` | `self:ldl(...)` | Draw line |
+| `self:draw_rectangle(x1, y1, x2, y2, {r,g,b})` | `self:ldr(...)` | Draw rectangle outline |
+| `self:draw_rectangle_filled(x1, y1, x2, y2, {r,g,b})` | `self:ldrf(...)` | Draw filled rectangle |
+| `self:draw_rectangle_rounded(x1, y1, x2, y2, radius, {r,g,b})` | `self:ldrr(...)` | Draw rounded rectangle |
+| `self:draw_rectangle_rounded_filled(x1, y1, x2, y2, radius, {r,g,b})` | `self:ldrrf(...)` | Draw filled rounded rectangle |
+| `self:draw_polygon({x1,x2,...}, {y1,y2,...}, {r,g,b})` | `self:ldpo(...)` | Draw polygon outline |
+| `self:draw_polygon_filled({x1,x2,...}, {y1,y2,...}, {r,g,b})` | `self:ldpof(...)` | Draw filled polygon |
+| `self:draw_text(text, x, y, size, {r,g,b})` | `self:ldt(...)` | Draw text |
+| `self:draw_text_fast(text, x, y, size, {r,g,b})` | `self:ldft(...)` | Draw text (faster) |
+| `self:draw_area_filled(x1, y1, x2, y2, {r,g,b})` | `self:ldaf(...)` | Fill area (no alpha) |
+| `self:draw_demo(n)` | `self:ldd(n)` | Draw demo iteration |
+
+### Global GUI Functions
+
+These can be called from any element, specifying screen_index (usually 0):
+
+| Function | Short | Description |
+|----------|-------|-------------|
+| `gui_draw_swap(screen)` | `ggdsw(screen)` | Swap display buffers |
+| `gui_draw_pixel(screen, x, y, {r,g,b})` | `ggdpx(...)` | Draw pixel |
+| `gui_draw_line(screen, x1, y1, x2, y2, {r,g,b})` | `ggdl(...)` | Draw line |
+| `gui_draw_rectangle(screen, x1, y1, x2, y2, {r,g,b})` | `ggdr(...)` | Draw rectangle |
+| `gui_draw_rectangle_filled(screen, x1, y1, x2, y2, {r,g,b})` | `ggdrf(...)` | Draw filled rectangle |
+| `gui_draw_text(screen, text, x, y, size, {r,g,b})` | `ggdt(...)` | Draw text |
+
+### VSN1L Display Examples
+
+#### Basic draw event (element 0)
+```lua
+-- grid:event element=0 event=draw
+--[[@gpl]]
+self:draw_rectangle_filled(0, 0, 240, 240, {0, 0, 0})
+self:draw_text("Hello", 50, 100, 24, {255, 255, 255})
+self:draw_swap()
+```
+
+#### Draw from another module's event
+```lua
+-- grid:event element=0 event=potmeter
+--[[@gpl]]
+local val = self:potmeter_value()
+gui_draw_rectangle_filled(0, 0, 0, 240, 240, {0, 0, 0})
+gui_draw_rectangle_filled(0, 0, 200, math.floor(val * 240 / 127), 40, {0, 255, 0})
+gui_draw_text(0, tostring(val), 100, 100, 32, {255, 255, 255})
+gui_draw_swap(0)
+```
+
+#### Animated display with timer
+```lua
+-- grid:event element=0 event=init
+--[[@gpl]]
+self.x = 0
+self:timer_start(50)
+
+-- grid:event element=0 event=timer
+--[[@gpl]]
+self.x = (self.x + 2) % 240
+self:draw_rectangle_filled(0, 0, 240, 240, {0, 0, 32})
+self:draw_rectangle_filled(self.x, 100, self.x + 40, 140, {255, 128, 0})
+self:draw_swap()
+self:timer_start(50)
+```
+
+### VSN1L Notes
+
+- Screen resolution: 240x240 pixels
+- Coordinate origin (0,0) is top-left
+- The `draw` event fires at ~40fps when the module is active
+- Always call `draw_swap()` after drawing to display changes
+- Use `draw_text_fast()` for better performance with frequently updating text
+- Colors are 8-bit per channel (0-255 for r, g, b)
 
 ## Action Block Types
 
