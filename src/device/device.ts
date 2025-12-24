@@ -724,31 +724,34 @@ export class GridDevice {
       attempts.push({ dx: module.dx, dy: module.dy, label: "module" });
     }
 
-    for (const attempt of attempts) {
-      const { descriptor } = createChangePage(
-        pageNumber,
-        attempt.dx,
-        attempt.dy,
-      );
-      const filter: ResponseFilter = {
-        class_name: ClassName.PAGEACTIVE,
-        class_instr: "REPORT",
-        class_parameters: {
-          PAGENUMBER: pageNumber,
-        },
-      };
-
-      log.debug(
-        `Requesting page ${pageNumber} (${attempt.label} dx=${attempt.dx}, dy=${attempt.dy})`,
-      );
-
-      try {
-        await this.sendAndWait(descriptor, filter, 1500, 0);
-        return true;
-      } catch (error) {
-        log.debug(
-          `Page ${pageNumber} change (${attempt.label}) not confirmed: ${error}`,
+    // Try twice - suppress warning on first round, only warn if second round also fails
+    for (let round = 0; round < 2; round++) {
+      for (const attempt of attempts) {
+        const { descriptor } = createChangePage(
+          pageNumber,
+          attempt.dx,
+          attempt.dy,
         );
+        const filter: ResponseFilter = {
+          class_name: ClassName.PAGEACTIVE,
+          class_instr: "REPORT",
+          class_parameters: {
+            PAGENUMBER: pageNumber,
+          },
+        };
+
+        log.debug(
+          `Requesting page ${pageNumber} (${attempt.label} dx=${attempt.dx}, dy=${attempt.dy})`,
+        );
+
+        try {
+          await this.sendAndWait(descriptor, filter, 1500, 0);
+          return true;
+        } catch (error) {
+          log.debug(
+            `Page ${pageNumber} change (${attempt.label}) not confirmed: ${error}`,
+          );
+        }
       }
     }
 
