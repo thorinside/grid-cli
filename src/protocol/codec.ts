@@ -1,4 +1,5 @@
 import * as log from "../utils/logger.js";
+import type { ElementType, ModuleType } from "@intechstudio/grid-protocol";
 
 // Lazy-loaded grid protocol module (to suppress debug output)
 let gridModule: typeof import("@intechstudio/grid-protocol") | null = null;
@@ -35,6 +36,10 @@ function getInitializedGrid(): NonNullable<typeof grid> {
     throw new Error("Protocol not initialized. Call initProtocol() first.");
   }
   return grid;
+}
+
+function getGridIfInitialized(): NonNullable<typeof grid> | undefined {
+  return grid ?? undefined;
 }
 
 /**
@@ -99,7 +104,9 @@ export interface DecodedMessage {
  */
 export function encodeMessage(descriptor: MessageDescriptor): Buffer {
   const g = getInitializedGrid();
-  const result = g.encode_packet(descriptor) as { id: string; serial: number[] } | undefined;
+  const result = g.encode_packet(descriptor) as
+    | { id: string; serial: number[] }
+    | undefined;
   if (!result) {
     throw new Error("Failed to encode packet");
   }
@@ -117,7 +124,7 @@ export function decodeMessage(data: Buffer): DecodedMessage[] {
   // Decode the packet frame
   const classArray = g.decode_packet_frame(byteArray);
 
-  if (classArray === false) {
+  if (!Array.isArray(classArray)) {
     log.debug("Failed to decode packet frame");
     return [];
   }
@@ -131,7 +138,11 @@ export function decodeMessage(data: Buffer): DecodedMessage[] {
 /**
  * Get grid protocol version info
  */
-export function getProtocolVersion(): { major: number; minor: number; patch: number } {
+export function getProtocolVersion(): {
+  major: number;
+  minor: number;
+  patch: number;
+} {
   const g = getInitializedGrid();
   const version = g.getProperty("VERSION");
   return {
@@ -147,6 +158,56 @@ export function getProtocolVersion(): { major: number; minor: number; patch: num
 export function getMaxConfigLength(): number {
   const g = getInitializedGrid();
   return g.getProperty("CONFIG_LENGTH");
+}
+
+export interface ElementEventInfo {
+  name: string;
+  value: number;
+  key?: string;
+  defaultConfig?: string;
+}
+
+export function getModuleTypeFromHwcfg(hwcfg: number): string | undefined {
+  const g = getGridIfInitialized();
+  if (!g) return undefined;
+  const type = g.module_type_from_hwcfg(hwcfg);
+  return typeof type === "string" && type.length > 0 ? type : undefined;
+}
+
+export function getModuleElementList(
+  moduleType: string,
+): Array<string | undefined> | undefined {
+  const g = getGridIfInitialized();
+  if (!g) return undefined;
+  const list = g.get_module_element_list(moduleType as ModuleType);
+  if (!Array.isArray(list)) return undefined;
+  return list as Array<string | undefined>;
+}
+
+export function getElementEvents(
+  elementType: string,
+): ElementEventInfo[] | undefined {
+  const g = getGridIfInitialized();
+  if (!g) return undefined;
+  const events = g.get_element_events(elementType as ElementType);
+  if (!Array.isArray(events)) return undefined;
+  const result: ElementEventInfo[] = [];
+  for (const event of events) {
+    if (!event || typeof event !== "object") continue;
+    const value = Number((event as { value?: unknown }).value);
+    if (!Number.isFinite(value)) continue;
+    const name = String((event as { desc?: unknown }).desc ?? "");
+    const key = (event as { key?: unknown }).key;
+    const defaultConfig = (event as { defaultConfig?: unknown }).defaultConfig;
+    result.push({
+      name,
+      value,
+      key: typeof key === "string" ? key : undefined,
+      defaultConfig:
+        typeof defaultConfig === "string" ? defaultConfig : undefined,
+    });
+  }
+  return result.length > 0 ? result : undefined;
 }
 
 /**

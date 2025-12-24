@@ -14,11 +14,28 @@ export interface ResponseFilter {
 /**
  * Matches a decoded message against a filter
  */
-export function matchesFilter(message: DecodedMessage, filter: ResponseFilter): boolean {
+export function matchesFilter(
+  message: DecodedMessage,
+  filter: ResponseFilter,
+): boolean {
+  const valuesEqual = (left: unknown, right: unknown): boolean => {
+    if (left === right) return true;
+    if (typeof left === "number" && typeof right === "string") {
+      const parsed = Number(right);
+      return Number.isFinite(parsed) && left === parsed;
+    }
+    if (typeof left === "string" && typeof right === "number") {
+      const parsed = Number(left);
+      return Number.isFinite(parsed) && parsed === right;
+    }
+    return false;
+  };
+
   // Check BRC parameters
   if (filter.brc_parameters) {
     for (const [key, value] of Object.entries(filter.brc_parameters)) {
-      if ((message.brc_parameters as Record<string, unknown>)[key] !== value) {
+      const actual = (message.brc_parameters as Record<string, unknown>)[key];
+      if (!valuesEqual(actual, value)) {
         return false;
       }
     }
@@ -37,8 +54,11 @@ export function matchesFilter(message: DecodedMessage, filter: ResponseFilter): 
   // Check class parameters
   if (filter.class_parameters) {
     for (const [key, value] of Object.entries(filter.class_parameters)) {
-      if (value !== null && message.class_parameters[key] !== value) {
-        return false;
+      if (value !== null) {
+        const actual = message.class_parameters[key];
+        if (!valuesEqual(actual, value)) {
+          return false;
+        }
       }
     }
   }
@@ -58,7 +78,7 @@ export class ResponseWaiter {
 
   constructor(
     private filter: ResponseFilter,
-    private timeoutMs: number = 5000
+    private timeoutMs: number = 5000,
   ) {
     this.promise = new Promise((resolve, reject) => {
       this.resolve = resolve;
@@ -73,7 +93,9 @@ export class ResponseWaiter {
     this.timeoutId = setTimeout(() => {
       if (this.settled) return;
       this.settled = true;
-      this.reject(new TimeoutError(`Timeout waiting for response (${this.timeoutMs}ms)`));
+      this.reject(
+        new TimeoutError(`Timeout waiting for response (${this.timeoutMs}ms)`),
+      );
     }, this.timeoutMs);
 
     return this.promise;

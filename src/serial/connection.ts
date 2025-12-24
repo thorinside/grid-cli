@@ -56,9 +56,11 @@ export class SerialConnection extends EventEmitter {
         },
         (err) => {
           if (err) {
-            reject(new ConnectionError(`Failed to create port: ${err.message}`));
+            reject(
+              new ConnectionError(`Failed to create port: ${err.message}`),
+            );
           }
-        }
+        },
       );
 
       // Store handlers for cleanup
@@ -198,10 +200,11 @@ export class SerialConnection extends EventEmitter {
    */
   async waitForMessage(
     predicate: (data: Buffer) => boolean,
-    timeoutMs: number = 5000
+    timeoutMs: number = 5000,
   ): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       let waiter: PendingWaiter;
+      let settled = false;
 
       const cleanup = () => {
         const index = this.pendingWaiters.indexOf(waiter);
@@ -213,15 +216,21 @@ export class SerialConnection extends EventEmitter {
       };
 
       const handler = (data: Buffer) => {
+        if (settled) return;
         if (predicate(data)) {
+          settled = true;
           cleanup();
           resolve(data);
         }
       };
 
       const timeout = setTimeout(() => {
+        if (settled) return;
+        settled = true;
         cleanup();
-        reject(new ConnectionError(`Timeout waiting for message (${timeoutMs}ms)`));
+        reject(
+          new ConnectionError(`Timeout waiting for message (${timeoutMs}ms)`),
+        );
       }, timeoutMs);
 
       waiter = { handler, timeout, reject };

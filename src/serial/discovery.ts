@@ -2,6 +2,27 @@ import { SerialPort } from "serialport";
 import { GRID_DEVICES, type DeviceInfo } from "../device/types.js";
 import * as log from "../utils/logger.js";
 
+function normalizeSerialNumber(serialNumber?: string): string | undefined {
+  if (!serialNumber) return undefined;
+  const trimmed = serialNumber.trim();
+  if (!trimmed) return undefined;
+
+  const lowered = trimmed.toLowerCase();
+  if (lowered === "n/a" || lowered === "na" || lowered === "unknown") {
+    return undefined;
+  }
+
+  const cleaned =
+    trimmed.startsWith("0x") || trimmed.startsWith("0X")
+      ? trimmed.slice(2)
+      : trimmed;
+  if (/^0+$/.test(cleaned)) {
+    return undefined;
+  }
+
+  return trimmed;
+}
+
 /**
  * Discover connected Grid devices by scanning serial ports
  */
@@ -15,9 +36,7 @@ export async function discoverDevices(): Promise<DeviceInfo[]> {
     const vid = parseInt(port.vendorId || "0", 16);
     const pid = parseInt(port.productId || "0", 16);
 
-    const gridDevice = GRID_DEVICES.find(
-      (d) => d.vid === vid && d.pid === pid
-    );
+    const gridDevice = GRID_DEVICES.find((d) => d.vid === vid && d.pid === pid);
 
     if (gridDevice) {
       log.debug(`Found Grid device: ${gridDevice.name} at ${port.path}`);
@@ -26,7 +45,7 @@ export async function discoverDevices(): Promise<DeviceInfo[]> {
         vid,
         pid,
         name: gridDevice.name,
-        serialNumber: port.serialNumber,
+        serialNumber: normalizeSerialNumber(port.serialNumber),
       });
     }
   }

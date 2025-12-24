@@ -8,52 +8,53 @@ export const GRID_DEVICES = [
 
 // Module types
 export const MODULE_TYPES: Record<number, string> = {
-  0: "PO16",   // 16 potentiometers
-  1: "BU16",   // 16 buttons
-  2: "PBF4",   // 4 faders + buttons
-  3: "EN16",   // 16 encoders
-  4: "EF44",   // 4 encoders + 4 faders
-  5: "TEK2",   // 2 endless touch strips
+  0: "PO16", // 16 potentiometers
+  1: "BU16", // 16 buttons
+  2: "PBF4", // 4 faders + buttons
+  3: "EN16", // 16 encoders
+  4: "EF44", // 4 encoders + 4 faders
+  5: "TEK2", // 2 endless touch strips
   127: "KNOT", // Knot hub
 };
 
-// Event types
-export enum EventType {
-  INIT = 0,
-  BUTTON = 1,
-  ENCODER = 2,
-  POTMETER = 3,
-  TIMER = 5,
-  MIDIRX = 6,
-  MAPMODE = 7,
-}
+// Event types (protocol values)
+export type EventType = number;
 
-export const EVENT_NAMES: Record<EventType, string> = {
-  [EventType.INIT]: "init",
-  [EventType.BUTTON]: "button",
-  [EventType.ENCODER]: "encoder",
-  [EventType.POTMETER]: "potmeter",
-  [EventType.TIMER]: "timer",
-  [EventType.MIDIRX]: "midirx",
-  [EventType.MAPMODE]: "mapmode",
+export const EVENT_NAMES: Record<number, string> = {
+  0: "init",
+  1: "potmeter",
+  2: "encoder",
+  3: "button",
+  4: "mapmode",
+  5: "midirx",
+  6: "timer",
 };
 
-// Element types and their supported events
+// Element types and their supported events (fallback when protocol is unavailable)
 export const ELEMENT_EVENTS: Record<string, EventType[]> = {
-  button: [EventType.INIT, EventType.BUTTON, EventType.TIMER, EventType.MIDIRX, EventType.MAPMODE],
-  encoder: [EventType.INIT, EventType.ENCODER, EventType.BUTTON, EventType.TIMER, EventType.MIDIRX, EventType.MAPMODE],
-  potmeter: [EventType.INIT, EventType.POTMETER, EventType.TIMER, EventType.MIDIRX, EventType.MAPMODE],
-  fader: [EventType.INIT, EventType.POTMETER, EventType.TIMER, EventType.MIDIRX, EventType.MAPMODE],
-  system: [EventType.INIT, EventType.TIMER, EventType.MIDIRX, EventType.MAPMODE],
+  button: [0, 3, 6, 5, 4],
+  encoder: [0, 2, 3, 6, 5, 4],
+  potmeter: [0, 1, 6, 5, 4],
+  fader: [0, 1, 6, 5, 4],
+  system: [0, 6, 5, 4],
 };
 
 // Module element configurations
-export const MODULE_ELEMENTS: Record<string, Array<{ type: string; count: number }>> = {
+export const MODULE_ELEMENTS: Record<
+  string,
+  Array<{ type: string; count: number }>
+> = {
   PO16: [{ type: "potmeter", count: 16 }],
   BU16: [{ type: "button", count: 16 }],
-  PBF4: [{ type: "fader", count: 4 }, { type: "button", count: 8 }],
+  PBF4: [
+    { type: "fader", count: 4 },
+    { type: "button", count: 8 },
+  ],
   EN16: [{ type: "encoder", count: 16 }],
-  EF44: [{ type: "encoder", count: 4 }, { type: "fader", count: 4 }],
+  EF44: [
+    { type: "encoder", count: 4 },
+    { type: "fader", count: 4 },
+  ],
   TEK2: [{ type: "potmeter", count: 2 }],
   KNOT: [{ type: "system", count: 1 }],
 };

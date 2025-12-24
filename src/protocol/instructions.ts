@@ -11,9 +11,16 @@ import { ProtocolError } from "../utils/errors.js";
 /**
  * Validate protocol parameters are within valid bounds
  */
-function validateBounds(name: string, value: number, min: number, max: number): void {
+function validateBounds(
+  name: string,
+  value: number,
+  min: number,
+  max: number,
+): void {
   if (!Number.isInteger(value) || value < min || value > max) {
-    throw new ProtocolError(`Invalid ${name}: ${value} (must be integer ${min} to ${max})`);
+    throw new ProtocolError(
+      `Invalid ${name}: ${value} (must be integer ${min} to ${max})`,
+    );
   }
 }
 
@@ -25,7 +32,7 @@ export function createFetchConfig(
   dy: number,
   page: number,
   element: number,
-  eventType: number
+  eventType: number,
 ): { descriptor: MessageDescriptor; filter: ResponseFilter } {
   // Validate parameters
   validateBounds("dx", dx, -127, 127);
@@ -74,7 +81,7 @@ export function createSendConfig(
   page: number,
   element: number,
   eventType: number,
-  actionScript: string
+  actionScript: string,
 ): { descriptor: MessageDescriptor; filter: ResponseFilter } {
   // Validate parameters
   validateBounds("dx", dx, -127, 127);
@@ -114,7 +121,10 @@ export function createSendConfig(
 /**
  * Create a store page instruction (persist to flash)
  */
-export function createStorePage(): { descriptor: MessageDescriptor; filter: ResponseFilter } {
+export function createStorePage(): {
+  descriptor: MessageDescriptor;
+  filter: ResponseFilter;
+} {
   const descriptor: MessageDescriptor = {
     brc_parameters: { DX: -127, DY: -127 },
     class_name: ClassName.PAGESTORE,
@@ -136,9 +146,13 @@ export function createStorePage(): { descriptor: MessageDescriptor; filter: Resp
 /**
  * Create a change page instruction
  */
-export function createChangePage(page: number): { descriptor: MessageDescriptor } {
+export function createChangePage(
+  page: number,
+  dx: number = -127,
+  dy: number = -127,
+): { descriptor: MessageDescriptor; filter: ResponseFilter } {
   const descriptor: MessageDescriptor = {
-    brc_parameters: { DX: -127, DY: -127 },
+    brc_parameters: { DX: dx, DY: dy },
     class_name: ClassName.PAGEACTIVE,
     class_instr: InstructionType.EXECUTE,
     class_parameters: {
@@ -146,7 +160,36 @@ export function createChangePage(page: number): { descriptor: MessageDescriptor 
     },
   };
 
-  return { descriptor };
+  const filter: ResponseFilter = {
+    brc_parameters: { SX: dx, SY: dy },
+    class_name: ClassName.PAGEACTIVE,
+    class_instr: InstructionType.REPORT,
+    class_parameters: {
+      PAGENUMBER: page,
+    },
+  };
+
+  return { descriptor, filter };
+}
+
+/**
+ * Create an editor heartbeat instruction (used to allow page changes)
+ */
+export function createEditorHeartbeat(type: number): MessageDescriptor {
+  const version = getProtocolVersion();
+
+  return {
+    brc_parameters: { DX: -127, DY: -127 },
+    class_name: ClassName.HEARTBEAT,
+    class_instr: InstructionType.EXECUTE,
+    class_parameters: {
+      TYPE: type,
+      HWCFG: 255,
+      VMAJOR: version.major,
+      VMINOR: version.minor,
+      VPATCH: version.patch,
+    },
+  };
 }
 
 /**
@@ -154,7 +197,7 @@ export function createChangePage(page: number): { descriptor: MessageDescriptor 
  */
 export function createFetchPageCount(
   dx: number,
-  dy: number
+  dy: number,
 ): { descriptor: MessageDescriptor; filter: ResponseFilter } {
   const descriptor: MessageDescriptor = {
     brc_parameters: { DX: dx, DY: dy },
@@ -174,7 +217,10 @@ export function createFetchPageCount(
 /**
  * Create an NVM erase instruction (factory reset)
  */
-export function createNVMErase(): { descriptor: MessageDescriptor; filter: ResponseFilter } {
+export function createNVMErase(): {
+  descriptor: MessageDescriptor;
+  filter: ResponseFilter;
+} {
   const descriptor: MessageDescriptor = {
     brc_parameters: { DX: -127, DY: -127 },
     class_name: ClassName.NVMERASE,
@@ -196,7 +242,10 @@ export function createNVMErase(): { descriptor: MessageDescriptor; filter: Respo
 /**
  * Create a discard page instruction (discard unsaved changes)
  */
-export function createDiscardPage(): { descriptor: MessageDescriptor; filter: ResponseFilter } {
+export function createDiscardPage(): {
+  descriptor: MessageDescriptor;
+  filter: ResponseFilter;
+} {
   const descriptor: MessageDescriptor = {
     brc_parameters: { DX: -127, DY: -127 },
     class_name: ClassName.PAGEDISCARD,
@@ -218,7 +267,10 @@ export function createDiscardPage(): { descriptor: MessageDescriptor; filter: Re
 /**
  * Create a clear page instruction
  */
-export function createClearPage(): { descriptor: MessageDescriptor; filter: ResponseFilter } {
+export function createClearPage(): {
+  descriptor: MessageDescriptor;
+  filter: ResponseFilter;
+} {
   const descriptor: MessageDescriptor = {
     brc_parameters: { DX: -127, DY: -127 },
     class_name: ClassName.PAGECLEAR,
