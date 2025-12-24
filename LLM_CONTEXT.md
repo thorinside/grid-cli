@@ -54,7 +54,10 @@ The LCD uses double-buffering - draw to the back buffer, then call `draw_swap()`
    - The init code will NOT run immediately after push
    - **Note**: LCD draw events update immediately without reboot - only init requires reboot
 
-2. **LCD more reliable when USB is in another module**: The VSN1L LCD initializes more reliably when USB is connected to a different module in the chain (e.g., PBF4). This may be a power or timing issue during boot when VSN1L is the USB host.
+2. **LCD initialization quirks**: The VSN1L LCD can be finicky to initialize:
+   - More reliable when USB is connected to a different module in the chain (e.g., PBF4)
+   - If the screen stays dark, try disconnecting and reconnecting the module chain
+   - This may be a power or timing issue during boot
 
 3. **LCD backlight must be set in init**: Call `lcd_set_backlight(255)` (or short form `glsb(255)`) in the LCD init (element 13) to enable the backlight. Without this, the screen stays dark even if drawing works. The backlight call only works in the LCD element's init event (element 13), not in the system init (element 255).
 
