@@ -14,22 +14,6 @@ const TOOL_VERSION = "0.1.0";
 const MODULE_VERSION = "1.0.0";
 const MODULE_FILE_NAME = "module.json";
 
-/**
- * Sanitize a string for use as a directory/file name component.
- * Prevents path traversal attacks and ensures cross-platform compatibility.
- */
-function sanitizePathComponent(value: string): string {
-  // First, take only the basename to prevent any path separators from causing traversal
-  const basename = path.basename(value);
-
-  // Then slugify: lowercase, replace non-alphanumeric with dashes, trim dashes
-  return basename
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 64);
-}
-
 function slugify(value: string): string {
   // Validate that value doesn't contain path separators before slugifying
   if (value.includes("/") || value.includes("\\") || value.includes("..")) {
@@ -79,10 +63,17 @@ function actionsMatch(a: Action[], b: Action[]): boolean {
 }
 
 function humanizeActions(actions: Action[]): Action[] {
-  return actions.map((action) => ({
-    ...action,
-    code: GridScript.humanize(action.code),
-  }));
+  return actions.map((action) => {
+    try {
+      return { ...action, code: GridScript.expandScript(action.code) };
+    } catch (error) {
+      log.warn(
+        `beautifyLua failed for action "${action.short}": ${error instanceof Error ? error.message : String(error)}`,
+      );
+      log.warn(`Falling back to humanize-only for: ${action.code}`);
+      return { ...action, code: GridScript.humanize(action.code) };
+    }
+  });
 }
 
 export async function writeConfig(

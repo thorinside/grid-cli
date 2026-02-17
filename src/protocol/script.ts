@@ -15,3 +15,5 @@ async function loadGridModule() {
 const module = await loadGridModule();
 
 export const GridScript = module.GridScript;
+
+export const initLuaFormatter = module.initLuaFormatter;

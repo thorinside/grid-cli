@@ -509,11 +509,16 @@ export class GridDevice {
         const meta = action.name
           ? `${action.short}#${action.name}`
           : action.short;
-        // Shortify the code, then compress to single line (device requires single-line format)
-        const shortCode = GridScript.shortify(action.code)
-          .replace(/[\n\r]+/g, " ")
-          .replace(/\s{2,}/g, " ")
-          .trim();
+        let shortCode: string;
+        try {
+          shortCode = GridScript.compressScript(action.code);
+        } catch {
+          // Lua fragments (e.g. bare if/else/end) can't be parsed; fall back to regex
+          shortCode = GridScript.shortify(action.code)
+            .replace(/[\n\r]+/g, " ")
+            .replace(/\s{2,}/g, " ")
+            .trim();
+        }
         return `--[[@${meta}]] ${shortCode}`;
       })
       .join(" ");

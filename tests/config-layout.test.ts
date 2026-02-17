@@ -1,4 +1,5 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
+import { initLuaFormatter } from "../src/protocol/script.js";
 import * as fs from "fs/promises";
 import * as os from "os";
 import * as path from "path";
@@ -48,6 +49,10 @@ function buildModuleConfig(): ModuleConfig {
 }
 
 describe("config layout", () => {
+  beforeAll(async () => {
+    await initLuaFormatter();
+  });
+
   it("writes a compact layout and reads it back", async () => {
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "grid-config-"));
     try {

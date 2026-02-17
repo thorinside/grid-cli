@@ -1,5 +1,6 @@
 import * as log from "../utils/logger.js";
 import type { ElementType, ModuleType } from "@intechstudio/grid-protocol";
+import { initLuaFormatter } from "../protocol/script.js";
 
 // Lazy-loaded grid protocol module (to suppress debug output)
 let gridModule: typeof import("@intechstudio/grid-protocol") | null = null;
@@ -26,6 +27,7 @@ let grid: (typeof import("@intechstudio/grid-protocol"))["grid"] | undefined;
  */
 export async function initProtocol(): Promise<void> {
   grid = await getGrid();
+  await initLuaFormatter();
 }
 
 /**

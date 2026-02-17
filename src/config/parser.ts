@@ -1,5 +1,6 @@
 import type { Action } from "../device/types.js";
 import { ValidationError } from "../utils/errors.js";
+import { GridScript } from "../protocol/script.js";
 
 /**
  * Parse readable LUA file content into Action objects
@@ -128,7 +129,7 @@ export function parseDeviceFormat(script: string): Action[] {
   const actions: Action[] = [];
 
   // Remove formatting
-  let actionString = script.replace(/[\n\r]+/g, "").replace(/\s{2,}/g, " ");
+  const actionString = script.replace(/[\n\r]+/g, "").replace(/\s{2,}/g, " ");
 
   // Pattern: --[[@short#name]] code
   const pattern = /--\[\[@([^\]]*)\]\]\s*(.*?)(?=(--\[\[@|$))/gs;
@@ -167,11 +168,16 @@ export function toDeviceFormat(actions: Action[]): string {
       const meta = action.name
         ? `${action.short}#${action.name}`
         : action.short;
-      // Compress code to single line for device
-      const code = action.code
-        .replace(/[\n\r]+/g, " ")
-        .replace(/\s{2,}/g, " ")
-        .trim();
+      let code: string;
+      try {
+        code = GridScript.minifyScript(action.code);
+      } catch {
+        // Lua fragments (e.g. bare if/else/end) can't be parsed; fall back to regex
+        code = action.code
+          .replace(/[\n\r]+/g, " ")
+          .replace(/\s{2,}/g, " ")
+          .trim();
+      }
       return `--[[@${meta}]] ${code}`;
     })
     .join(" ");

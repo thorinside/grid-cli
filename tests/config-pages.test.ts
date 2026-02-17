@@ -1,4 +1,5 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
+import { initLuaFormatter } from "../src/protocol/script.js";
 import * as fs from "fs/promises";
 import * as os from "os";
 import * as path from "path";
@@ -50,6 +51,10 @@ function buildConfigWithDefaultPage(): ModuleConfig {
 }
 
 describe("config pages", () => {
+  beforeAll(async () => {
+    await initLuaFormatter();
+  });
+
   it("skips pages that only contain default actions", async () => {
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "grid-config-"));
     try {

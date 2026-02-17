@@ -203,17 +203,7 @@ export class SerialConnection extends EventEmitter {
     timeoutMs: number = 5000,
   ): Promise<Buffer> {
     return new Promise((resolve, reject) => {
-      let waiter: PendingWaiter;
       let settled = false;
-
-      const cleanup = () => {
-        const index = this.pendingWaiters.indexOf(waiter);
-        if (index >= 0) {
-          this.pendingWaiters.splice(index, 1);
-        }
-        clearTimeout(waiter.timeout);
-        this.off("message", waiter.handler);
-      };
 
       const handler = (data: Buffer) => {
         if (settled) return;
@@ -233,7 +223,17 @@ export class SerialConnection extends EventEmitter {
         );
       }, timeoutMs);
 
-      waiter = { handler, timeout, reject };
+      const waiter: PendingWaiter = { handler, timeout, reject };
+
+      const cleanup = () => {
+        const index = this.pendingWaiters.indexOf(waiter);
+        if (index >= 0) {
+          this.pendingWaiters.splice(index, 1);
+        }
+        clearTimeout(waiter.timeout);
+        this.off("message", waiter.handler);
+      };
+
       this.pendingWaiters.push(waiter);
       this.on("message", handler);
     });
