@@ -17,6 +17,7 @@ export interface PushOptions {
   pages?: string;
   skipPages?: string;
   byPosition?: boolean;
+  all?: boolean;
 }
 
 /**
@@ -93,12 +94,36 @@ export async function pushCommand(
   log.info(`  Modules: ${configs.length}`);
   log.info(`  Total events: ${totalEvents}`);
 
+  if (options.all && options.byPosition) {
+    throw new GridError(
+      "Cannot use --all with --by-position. Use --all to broadcast by type, or --by-position for different configs per grid position.",
+    );
+  }
+
+  const configTypes = filteredConfigs.map((c) => c.module.type);
+  const duplicateConfigTypes = configTypes.filter(
+    (t, i) => configTypes.indexOf(t) !== i,
+  );
+  if (!options.byPosition && duplicateConfigTypes.length > 0) {
+    const hint = options.all
+      ? "Remove duplicate module types or use --by-position for different configs per position."
+      : "Use --by-position for configs with duplicate module types.";
+    throw new GridError(
+      `Multiple modules of same type in config: ${[...new Set(duplicateConfigTypes)].join(", ")}. ${hint}`,
+    );
+  }
+
   if (options.dryRun) {
     log.info("\n[Dry run] Would push configuration to device.");
     log.info("Modules in configuration:");
     for (const config of configs) {
       log.info(
         `  - ${config.module.type} at (${config.module.dx}, ${config.module.dy})`,
+      );
+    }
+    if (options.all) {
+      log.info(
+        "[--all] Would broadcast each config to every connected module of the same type.",
       );
     }
     return;
@@ -124,11 +149,9 @@ export async function pushCommand(
       await device.waitForModules(5000);
     }
 
-    // Check that modules match
     let pushedCount = 0;
 
     if (options.byPosition) {
-      // Match by position (original behavior)
       for (const config of filteredConfigs) {
         const deviceModule = modules.find(
           (m) => m.dx === config.module.dx && m.dy === config.module.dy,
@@ -155,21 +178,28 @@ export async function pushCommand(
         await device.sendModuleConfig(config, deviceModule);
         pushedCount++;
       }
-    } else {
-      // Match by type (default) - find device module with matching type
-      // Check for duplicate types in config
-      const configTypes = filteredConfigs.map((c) => c.module.type);
-      const duplicateConfigTypes = configTypes.filter(
-        (t, i) => configTypes.indexOf(t) !== i,
-      );
-      if (duplicateConfigTypes.length > 0) {
-        throw new GridError(
-          `Multiple modules of same type in config: ${[...new Set(duplicateConfigTypes)].join(", ")}. ` +
-            `Use --by-position for configs with duplicate module types.`,
+    } else if (options.all) {
+      for (const config of filteredConfigs) {
+        const targets = modules.filter((m) => m.type === config.module.type);
+        if (targets.length === 0) {
+          log.warn(
+            `Module type ${config.module.type} not found on device. Skipping.`,
+          );
+          continue;
+        }
+        log.info(
+          `\n[--all] Pushing ${config.module.type} config to ${targets.length} module(s)...`,
         );
+        for (const deviceModule of targets) {
+          log.info(
+            `  → ${config.module.type} at (${deviceModule.dx}, ${deviceModule.dy})`,
+          );
+          await device.sendModuleConfig(config, deviceModule);
+          pushedCount++;
+        }
       }
-
-      // Check for duplicate types on device
+    } else {
+      // Match by type (default) - find first device module with matching type
       const deviceTypes = modules.map((m) => m.type);
       const duplicateDeviceTypes = deviceTypes.filter(
         (t, i) => deviceTypes.indexOf(t) !== i,
@@ -177,7 +207,7 @@ export async function pushCommand(
       if (duplicateDeviceTypes.length > 0) {
         log.warn(
           `Multiple modules of same type on device: ${[...new Set(duplicateDeviceTypes)].join(", ")}. ` +
-            `Consider using --by-position for precise control.`,
+            `Only the first match per type will receive the config. Use --all to push to all, or --by-position for precise control.`,
         );
       }
 
