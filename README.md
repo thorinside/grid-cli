@@ -38,6 +38,9 @@ node dist/cli.js push ./my-config
 # Push specific pages only
 node dist/cli.js push ./my-config --pages 0
 
+# Push the same config to every connected module with matching type
+node dist/cli.js push ./my-config --all
+
 # Push without saving to flash (temporary)
 node dist/cli.js push ./my-config --no-store
 ```

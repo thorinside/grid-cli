@@ -100,6 +100,10 @@ program
     "--by-position",
     "Match modules by position instead of type (for duplicate module types)",
   )
+  .option(
+    "--all",
+    "Push each config to every on-device module of the same type (one config per type)",
+  )
   .action(async (directory: string, options: PushOptions) => {
     try {
       await pushCommand(directory, options);
